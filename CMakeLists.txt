@@ -5,14 +5,21 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(${PROJECT_SOURCE_DIR}/compiler)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
-file(GLOB_RECURSE SOURCES
-    "${PROJECT_SOURCE_DIR}/compiler/*.cpp"
-)
+# NOTE: if you add/remove files, re-run cmake manually
+file(GLOB_RECURSE SOURCES "${PROJECT_SOURCE_DIR}/compiler/*.cpp")
 
 add_executable(espresso main.cpp ${SOURCES})
 
-# Debug + AddressSanitizer
-target_compile_options(espresso PRIVATE -g -fsanitize=address)
-target_link_options(espresso PRIVATE -fsanitize=address)
+target_include_directories(espresso PRIVATE ${PROJECT_SOURCE_DIR}/compiler)
+
+target_compile_options(espresso PRIVATE
+    $<$<CONFIG:Debug>:-g>
+    $<$<CONFIG:Release>:-O2>
+)
+
+if(ENABLE_ASAN)
+    target_compile_options(espresso PRIVATE -fsanitize=address)
+    target_link_options(espresso PRIVATE -fsanitize=address)
+endif()

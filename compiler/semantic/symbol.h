@@ -8,14 +8,14 @@ namespace espresso_compiler {
 struct Symbol;
 struct TypeSymbol;
 struct VariableSymbol;
-struct StructSymbolPtr;
+struct StructSymbol;
 struct FunctionSymbol;
 struct TraitSymbol;
 
 using SymbolPtr = std::shared_ptr<Symbol>;
 using TypeSymbolPtr = std::shared_ptr<TypeSymbol>;
 using VariableSymbolPtr = std::shared_ptr<VariableSymbol>;
-using StructSymbolPtr = std::shared_ptr<StructSymbolPtr>;
+using StructSymbolPtr = std::shared_ptr<StructSymbol>;
 using FunctionSymbolPtr = std::shared_ptr<FunctionSymbol>;
 using TraitSymbolPtr = std::shared_ptr<TraitSymbol>;
 

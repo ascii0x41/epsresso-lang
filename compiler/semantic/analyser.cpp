@@ -107,7 +107,8 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
                 }}
             );
         }
-        default: break;
+        default:
+            return std::make_shared<TypeSymbol>(make_error_type());
     }
 }
 }

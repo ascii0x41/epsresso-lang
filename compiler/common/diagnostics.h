@@ -13,12 +13,12 @@ namespace espresso_compiler {
 // ============================================================================
 
 class CompilerException : public std::exception {
+public:
     std::string message_;
     std::string filepath;
     int line;
     int column;
 
-public:
     explicit CompilerException(std::string message, int l, int c, std::string fn = "")
         : message_(std::move(message)), line(l), column(c), filepath(std::move(fn)) {}
 

@@ -294,7 +294,7 @@ GenericParams Parser::parse_generic_params() {
 
                 constraints.emplace_back(trait_name, std::move(args));
 
-            } while (peek_next().type != TokenType::COLON);
+            } while (accept(TokenType::COMMA) && peek().type == TokenType::IDENTIFIER);
         }
 
         result.emplace_back(name, std::move(constraints));
@@ -972,17 +972,16 @@ StatementPtr Parser::parse_statement() {
                 l.line, l.column, l.file_name);    
         }
     }
-    if (accept(TokenType::FUNC))   return parse_function_decl();
-    if (accept(TokenType::STRUCT)) return parse_struct_decl();
-    if (accept(TokenType::TRAIT))  return parse_trait_decl();
-    if (accept(TokenType::TYPE))   return parse_type_alias_decl();
-    if (accept(TokenType::ENUM))   return parse_enum_decl();
+
+    if (accept(TokenType::FUNC)) { return parse_function_decl(); }
+    if (accept(TokenType::STRUCT)) { return parse_struct_decl(); }
+    if (accept(TokenType::TRAIT)) { return parse_trait_decl(); }
+    if (accept(TokenType::TYPE)) { return parse_type_alias_decl(); }
+    if (accept(TokenType::ENUM)) { return parse_enum_decl(); }
+    if (accept(TokenType::SCOPE)) { return parse_scope_decl(); }
 
     // Tags can also appear before operator overloads inside structs
-    if (peek().type == TokenType::OPERATOR) {
-        advance();
-        return parse_operator_overload();
-    }
+    if (accept(TokenType::OPERATOR)) return parse_operator_overload();
 
     // If tags are still buffered here, nothing valid can follow them
     if (!tag_buffer.empty()) {
@@ -1440,8 +1439,7 @@ Ptr<TraitDeclNode> Parser::parse_trait_decl() {
             requirements.push_back(std::make_shared<TraitDeclNode::OperatorRequirement>(
                 op_type, std::move(param_types), std::move(return_type)));
 
-        } else if (peek().type == TokenType::IDENTIFIER ||
-                   peek().type == TokenType::SELF) {
+        } else if (accept(TokenType::WHERE)) {
             // Type constraint: Self:Printable;  or  T:Comparable<U>;
             if (!method_tags.empty()) {
                 throw CompilerException(
@@ -1450,6 +1448,7 @@ Ptr<TraitDeclNode> Parser::parse_trait_decl() {
             }
 
             std::string type_param = advance().lexeme;
+            std::cout << type_param << std::endl;
             expect(TokenType::COLON, "Expected ':' in type constraint");
 
             // Parse the constraint type expression
@@ -1513,11 +1512,8 @@ Ptr<TypeAliasDeclNode> Parser::parse_type_alias_decl() {
     auto target = parse_type_expression();
     expect(TokenType::SEMICOLON, "Expected ';' after type alias");
 
-    std::vector<std::string> param_names;
-    for (const auto& p : generic_params) param_names.push_back(p.name);
-
     return std::make_shared<TypeAliasDeclNode>(
-        std::move(alias), std::move(param_names), std::move(target), l
+        std::move(alias), std::move(generic_params), std::move(target), l
     );
 }
 
@@ -1607,8 +1603,9 @@ Ptr<ScopeDeclNode> Parser::parse_scope_decl() {
         }
         decls.push_back(std::move(decl));
     }
+    expect(TokenType::RBRACE, "Expected '}' to close scope");
 
-    return std::make_shared<ScopeDeclNode>(std::move(name), std::move(decls), loc);
+    return std::make_shared<ScopeDeclNode>(std::move(name), std::move(decls), l);
 }
 
 // ============================================================================
@@ -1679,7 +1676,7 @@ StatementPtr Parser::parse_do_while_stmt() {
 }
 
 StatementPtr Parser::parse_for_stmt() {
-    // for (let i:Int = 0; i < limit; i++) { ... }
+    // for (let i: Int = 0; i < limit; i += 1) { ... }
     // ENTRY: 'for' already consumed
     SourceLocation l = loc();
     expect(TokenType::LPAREN, "Expected '(' after 'for'");

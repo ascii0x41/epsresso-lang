@@ -1,4 +1,11 @@
 .bin/
+build/
 .test/
 .trash/
 .vscode/
+.idea/
+*.o
+*.exe
+*.out
+__pycache__/
+venv/

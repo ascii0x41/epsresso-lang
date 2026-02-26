@@ -44,8 +44,9 @@ int main(int argc, char** argv) {
         dump_ast(out, ast);
 
 
-    } catch (const std::exception& e) {
+    } catch (const CompilerException& e) {
         std::cout << e.what() << std::endl;
+        std::cout << e.line << ":" << e.column << std::endl;
         return 1;
     }
 

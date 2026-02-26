@@ -23,12 +23,14 @@ Requires Python 3 and CMake.
 
 On Unix/Linux/macOS:
 ​```bash
+python -m venv venv
 source venv/bin/activate
 python setup.py
 ​```
 
 On Windows:
 ​```bash
+python -m venv venv
 venv\Scripts\activate
 python setup.py
 ​```
