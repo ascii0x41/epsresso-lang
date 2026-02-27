@@ -91,7 +91,7 @@ static void dump_generic_params(std::ostream& out, const GenericParams& params, 
             out << ":";
             for (size_t j = 0; j < params[i].traits.size(); ++j) {
                 if (j > 0) out << ",";
-                out << params[i].traits[j].trait_name;
+                out << params[i].traits[j].trait_name->to_string();
                 if (!params[i].traits[j].args.empty()) {
                     out << "<...>";
                 }
@@ -485,7 +485,7 @@ static void dump_node(std::ostream& out, const ASTNodePtr& node, int level) {
             if (!n->constraints.empty()) {
                 indent(out, level + 1); out << "(constraints " << "\n";
                 for (const auto& c : n->constraints) {
-                    indent(out, level + 2); out << c.trait_name;
+                    indent(out, level + 2); out << c.trait_name->to_string();
                     if (!c.args.empty()) {
                         out << ":\n";
                         for (const auto& a : c.args) {
@@ -532,7 +532,7 @@ static void dump_node(std::ostream& out, const ASTNodePtr& node, int level) {
             for (const auto& req : n->requirements) {
                 indent(out, level + 1);
                 if (auto r = std::dynamic_pointer_cast<TraitDeclNode::TypeRequirement>(req)) {
-                    out << "[type_req] " << r->type_param << ":" << r->constraint.trait_name << "\n";
+                    out << "[type_req] " << r->type_param << ":" << r->constraint.trait_name->to_string() << "\n";
                 } else if (auto r = std::dynamic_pointer_cast<TraitDeclNode::MethodRequirement>(req)) {
                     out << "[method_req] " << (r->is_static ? "static " : "") << r->name << "(";
                     for (size_t i = 0; i < r->parameters.size(); ++i) {

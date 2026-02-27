@@ -216,9 +216,8 @@ UnaryOp Parser::token_to_unary_op(TokenType type) const {
     }
 }
 
-OperatorOverloadNode::OperatorType
-Parser::token_to_operator_type(TokenType type, bool is_unary) const {
-    using OT = OperatorOverloadNode::OperatorType;
+OperatorOverloadType Parser::token_to_operator_type(TokenType type, bool is_unary) const {
+    using OT = OperatorOverloadType;
     if (is_unary) {
         switch (type) {
             case TokenType::PLUS:  return OT::UNARY_PLUS;
@@ -253,6 +252,30 @@ Parser::token_to_operator_type(TokenType type, bool is_unary) const {
 }
 
 // ============================================================================
+// QUALIFIED NAME PARSING
+// Parses names with :: separators: math::real, std::vector, etc.
+// ============================================================================
+
+NamePtr Parser::parse_qualified_name() {
+    SourceLocation l = loc();
+    std::string first_name = expect(TokenType::IDENTIFIER,
+                                    "Expected identifier").lexeme;
+    
+    NamePtr result = std::make_shared<NameExpression>(first_name, l);
+    
+    while (peek().type == TokenType::COLON_COLON || peek().type == TokenType::DOT) {
+        bool is_static = peek().type == TokenType::COLON_COLON;
+        advance();  // consume '::' or '.'
+        std::string next_name = expect(TokenType::IDENTIFIER,
+                                      "Expected identifier after '::' or '.'").lexeme;
+        result = std::make_shared<MemberAccessExpr>(
+            result, std::move(next_name), is_static, l);
+    }
+    
+    return result;
+}
+
+// ============================================================================
 // GENERIC PARAMETER PARSING
 // Parses <T, U:Constraint> on a declaration.
 // Called after consuming '<'.
@@ -268,9 +291,9 @@ GenericParams Parser::parse_generic_params() {
         std::vector<TraitConstraint> constraints;
 
         if (accept(TokenType::COLON)) {
-            do {
-                std::string trait_name = expect(TokenType::IDENTIFIER,
-                    "Expected trait name after ':'").lexeme;
+            while (true) {
+                auto trait_name_ptr = parse_qualified_name();
+                auto trait_name_node = std::dynamic_pointer_cast<Name>(trait_name_ptr);
 
                 std::vector<TypeExprPtr> args;
                 if (peek().type == TokenType::LT) {
@@ -292,9 +315,43 @@ GenericParams Parser::parse_generic_params() {
                     }
                 }
 
-                constraints.emplace_back(trait_name, std::move(args));
+                constraints.emplace_back(trait_name_node, std::move(args));
 
-            } while (accept(TokenType::COMMA) && peek().type == TokenType::IDENTIFIER);
+                // Check if there's another constraint or if we've hit a new parameter
+                if (peek().type == TokenType::COMMA) {
+                    // Look ahead to see if this comma is for another trait or a new parameter
+                    if (peek_next().type == TokenType::IDENTIFIER) {
+                        // Need to check if it's followed by ':' (new parameter) or not (another trait)
+                        // For now, we'll just accept the comma and parse the next trait
+                        // The peek_next lookup requires checking the token after next
+                        // which we can't easily do. Instead, we peek and if next is IDENTIFIER,
+                        // we tentatively accept the comma and let a ':' following the identifier
+                        // break us out by trying to parse an expression
+                        
+                        // Check if this looks like a new parameter
+                        // (COMMA, IDENTIFIER, COLON pattern)
+                        // We need more lookahead... for now use a heuristic:
+                        // if next token after comma is identifier followed by colon, it's a new param
+                        // We can check this by peeking at indices
+                        size_t check_idx = idx + 1;
+                        if (check_idx < tokens.size() && tokens[check_idx].type == TokenType::IDENTIFIER) {
+                            size_t check_idx2 = check_idx + 1;
+                            if (check_idx2 < tokens.size() && tokens[check_idx2].type == TokenType::COLON) {
+                                // This is a new parameter, break out
+                                break;
+                            }
+                        }
+                        // Otherwise, assume it's another trait
+                        accept(TokenType::COMMA);
+                    } else {
+                        // No identifier after comma, so we're done with constraints
+                        break;
+                    }
+                } else {
+                    // No comma, we're done with constraints
+                    break;
+                }
+            }
         }
 
         result.emplace_back(name, std::move(constraints));
@@ -315,6 +372,11 @@ GenericParams Parser::parse_generic_params() {
     }
     return result;
 }
+
+// ============================================================================
+// QUALIFIED NAME PARSING
+// Parses names with :: separators: math::real, std::vector, etc.
+// ============================================================================
 
 // ============================================================================
 // TYPE EXPRESSION PARSING
@@ -1234,7 +1296,8 @@ Ptr<StructDeclNode> Parser::parse_struct_decl() {
     std::vector<TraitConstraint> constraints;
     if (accept(TokenType::IMPL)) {
         do {
-            std::string trait_name = expect(TokenType::IDENTIFIER, "Expected identifier after 'impl'").lexeme;
+            auto trait_name_ptr = parse_qualified_name();
+            auto trait_name_node = std::dynamic_pointer_cast<Name>(trait_name_ptr);
             std::vector<TypeExprPtr> args;
 
             if (peek().type == TokenType::LT) {
@@ -1256,7 +1319,7 @@ Ptr<StructDeclNode> Parser::parse_struct_decl() {
                     }
                 }
 
-                constraints.emplace_back(trait_name, std::move(args));            
+                constraints.emplace_back(trait_name_node, std::move(args));            
         } while (accept(TokenType::COMMA));
     }
 
@@ -1448,7 +1511,6 @@ Ptr<TraitDeclNode> Parser::parse_trait_decl() {
             }
 
             std::string type_param = advance().lexeme;
-            std::cout << type_param << std::endl;
             expect(TokenType::COLON, "Expected ':' in type constraint");
 
             // Parse the constraint type expression
@@ -1456,19 +1518,20 @@ Ptr<TraitDeclNode> Parser::parse_trait_decl() {
             expect(TokenType::SEMICOLON, "Expected ';' after type constraint");
 
             // Extract trait name and args from the parsed type
-            std::string trait_name;
+            NamePtr trait_name_node;
             std::vector<TypeExprPtr> trait_args;
+            SourceLocation l = loc();
             if (auto simple = std::dynamic_pointer_cast<SimpleType>(constraint_type)) {
-                trait_name = simple->name;
+                trait_name_node = std::make_shared<NameExpression>(simple->name, l);
             } else if (auto generic = std::dynamic_pointer_cast<GenericType>(constraint_type)) {
-                trait_name = generic->base_name;
+                trait_name_node = std::make_shared<NameExpression>(generic->base_name, l);
                 trait_args = std::move(generic->type_arguments);
             } else {
                 throw CompilerException("Invalid trait constraint", peek().line, peek().column, filepath);
             }
 
             requirements.push_back(std::make_shared<TraitDeclNode::TypeRequirement>(
-                std::move(type_param), TraitConstraint(std::move(trait_name), std::move(trait_args))));
+                std::move(type_param), TraitConstraint(std::move(trait_name_node), std::move(trait_args))));
 
         } else {
             throw CompilerException(

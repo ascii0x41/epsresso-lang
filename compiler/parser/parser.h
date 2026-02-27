@@ -32,11 +32,16 @@ class Parser {
     // ===== Op helpers =====
     BinaryOp token_to_binary_op(TokenType type) const;
     UnaryOp  token_to_unary_op(TokenType type) const;
-    OperatorOverloadNode::OperatorType token_to_operator_type(TokenType type, bool is_unary) const;
+    OperatorOverloadType token_to_operator_type(TokenType type, bool is_unary) const;
 
     // ===== Generic parameter parsing =====
     // Parses <T, U:Constraint> on a declaration
     GenericParams parse_generic_params();
+
+    // ===== Qualified name parsing =====
+    // Parses names with :: separators (e.g., math::real)
+    // Returns a Name expression tree
+    Ptr<Name> parse_qualified_name();
 
     // ===== Type parsing =====
     TypeExprPtr parse_type_expression();

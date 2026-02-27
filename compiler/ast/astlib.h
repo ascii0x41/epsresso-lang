@@ -14,6 +14,7 @@ namespace espresso_compiler {
 
 struct ASTNode;
 struct Statement;
+struct Name;
 struct Expression;
 struct Declaration;
 struct TypeExpression;
@@ -28,6 +29,7 @@ using Ptr = std::shared_ptr<T>;
 using ASTNodePtr = Ptr<ASTNode>;
 using StatementPtr = Ptr<Statement>;
 using ExpressionPtr = Ptr<Expression>;
+using NamePtr = Ptr<Name>;
 using DeclarationPtr = Ptr<Declaration>;
 using TypeExprPtr = Ptr<TypeExpression>;
 
@@ -316,10 +318,10 @@ struct ReferenceType : public TypeExpression {
  * Represents a trait constraint like "Printable" or "Comparable<T>"
  */
 struct TraitConstraint {
-    std::string trait_name;           // "Printable", "Comparable"
+    NamePtr trait_name;               // Printable, Comparable (as Name expression)
     std::vector<TypeExprPtr> args;    // For generic traits: [T] for Comparable<T>
 
-    TraitConstraint(std::string name, std::vector<TypeExprPtr> a = {})
+    TraitConstraint(NamePtr name, std::vector<TypeExprPtr> a = {})
         : trait_name(std::move(name)), args(std::move(a)) {}
 };
 
@@ -439,30 +441,54 @@ struct LiteralMapNode : public Expression {
 // ============================================================================
 
 /**
- * Simple identifier: x, myVar, functionName
+ * Base class for name-like expressions: identifiers and qualified names
  */
-struct NameExpression : public Expression {
-    std::string name;
+struct Name : public Expression {
+    // Convert this name expression to a fully qualified string (e.g., "math::real")
+    virtual std::string to_string() const = 0;
 
-    explicit NameExpression(std::string n, SourceLocation loc = {})
-        : Expression(NodeKind::NAME_EXPR, loc)
-        , name(std::move(n)) {}
+protected:
+    explicit Name(NodeKind k, SourceLocation loc = {})
+        : Expression(k, loc) {}
 };
 
 /**
- * Member access: obj.field, math::sin
+ * Simple identifier: x, myVar, functionName
  */
-struct MemberAccessExpr : public Expression {
+struct NameExpression : public Name {
+    std::string name;
+
+    explicit NameExpression(std::string n, SourceLocation loc = {})
+        : Name(NodeKind::NAME_EXPR, loc)
+        , name(std::move(n)) {}
+
+    std::string to_string() const override {
+        return name;
+    }
+};
+
+/**
+ * Qualified name access: obj.field, math::sin, std::vector::value_type
+ */
+struct MemberAccessExpr : public Name {
     ExpressionPtr object;
     std::string member_name;
     bool is_static;  // true for :: access, false for . access
 
     MemberAccessExpr(ExpressionPtr obj, std::string member,
                      bool is_static = false, SourceLocation loc = {})
-        : Expression(NodeKind::MEMBER_ACCESS, loc)
+        : Name(NodeKind::MEMBER_ACCESS, loc)
         , object(std::move(obj))
         , member_name(std::move(member))
         , is_static(is_static) {}
+
+    std::string to_string() const override {
+        if (auto name_ptr = std::dynamic_pointer_cast<Name>(object)) {
+            std::string sep = is_static ? "::" : ".";
+            return name_ptr->to_string() + sep + member_name;
+        }
+        return member_name;  // Fallback
+    }
 };
 
 // ============================================================================
@@ -873,22 +899,25 @@ struct StructDeclNode : public Declaration {
 /**
  * Operator overload declaration
  */
-struct OperatorOverloadNode : public Declaration {
-    enum class OperatorType {
-        UNARY_PLUS, UNARY_MINUS,
-        BINARY_PLUS, BINARY_MINUS, BINARY_MULTIPLY, BINARY_DIVIDE,
-        EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL,
-        COMPOUND_ADD, COMPOUND_SUB, COMPOUND_MUL, COMPOUND_DIV,
-        INDEX,  // operator[]
-    };
 
-    OperatorType op_type;
+enum class OperatorOverloadType {
+    UNARY_PLUS, UNARY_MINUS,
+    BINARY_PLUS, BINARY_MINUS, BINARY_MULTIPLY, BINARY_DIVIDE,
+    EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL,
+    COMPOUND_ADD, COMPOUND_SUB, COMPOUND_MUL, COMPOUND_DIV,
+    INDEX,  // operator[]
+};
+
+struct OperatorOverloadNode : public Declaration {
+
+
+    OperatorOverloadType op_type;
     std::vector<FunctionDeclNode::Parameter> parameters;
     TypeExprPtr return_type;
     Ptr<BlockStatement> body;
     TagList directives;
 
-    OperatorOverloadNode(OperatorType op,
+    OperatorOverloadNode(OperatorOverloadType op,
                          std::vector<FunctionDeclNode::Parameter> params,
                          TypeExprPtr ret_type,
                          Ptr<BlockStatement> b,
@@ -935,11 +964,11 @@ struct TraitDeclNode : public Declaration {
 
     // "operator+(Self) -> Self"
     struct OperatorRequirement : public Requirement {
-        OperatorOverloadNode::OperatorType operator_type;
+        OperatorOverloadType operator_type;
         std::vector<TypeExprPtr> parameters;
         TypeExprPtr return_type;
 
-        OperatorRequirement(OperatorOverloadNode::OperatorType op,
+        OperatorRequirement(OperatorOverloadType op,
                             std::vector<TypeExprPtr> params, TypeExprPtr ret)
             : operator_type(op), parameters(std::move(params))
             , return_type(std::move(ret)) {}
@@ -1171,25 +1200,25 @@ inline const char* unary_op_to_string(UnaryOp op) {
     }
 }
 
-inline const char* operator_type_to_string(OperatorOverloadNode::OperatorType op) {
+inline const char* operator_type_to_string(OperatorOverloadType op) {
     switch (op) {
-        case OperatorOverloadNode::OperatorType::UNARY_PLUS:      return "unary +";
-        case OperatorOverloadNode::OperatorType::UNARY_MINUS:     return "unary -";
-        case OperatorOverloadNode::OperatorType::BINARY_PLUS:     return "+";
-        case OperatorOverloadNode::OperatorType::BINARY_MINUS:    return "-";
-        case OperatorOverloadNode::OperatorType::BINARY_MULTIPLY: return "*";
-        case OperatorOverloadNode::OperatorType::BINARY_DIVIDE:   return "/";
-        case OperatorOverloadNode::OperatorType::EQUAL:           return "==";
-        case OperatorOverloadNode::OperatorType::NOT_EQUAL:       return "!=";
-        case OperatorOverloadNode::OperatorType::LESS:            return "<";
-        case OperatorOverloadNode::OperatorType::GREATER:         return ">";
-        case OperatorOverloadNode::OperatorType::LESS_EQUAL:      return "<=";
-        case OperatorOverloadNode::OperatorType::GREATER_EQUAL:   return ">=";
-        case OperatorOverloadNode::OperatorType::COMPOUND_ADD:    return "+=";
-        case OperatorOverloadNode::OperatorType::COMPOUND_SUB:    return "-=";
-        case OperatorOverloadNode::OperatorType::COMPOUND_MUL:    return "*=";
-        case OperatorOverloadNode::OperatorType::COMPOUND_DIV:    return "/=";
-        case OperatorOverloadNode::OperatorType::INDEX:           return "[]";
+        case OperatorOverloadType::UNARY_PLUS:      return "unary +";
+        case OperatorOverloadType::UNARY_MINUS:     return "unary -";
+        case OperatorOverloadType::BINARY_PLUS:     return "+";
+        case OperatorOverloadType::BINARY_MINUS:    return "-";
+        case OperatorOverloadType::BINARY_MULTIPLY: return "*";
+        case OperatorOverloadType::BINARY_DIVIDE:   return "/";
+        case OperatorOverloadType::EQUAL:           return "==";
+        case OperatorOverloadType::NOT_EQUAL:       return "!=";
+        case OperatorOverloadType::LESS:            return "<";
+        case OperatorOverloadType::GREATER:         return ">";
+        case OperatorOverloadType::LESS_EQUAL:      return "<=";
+        case OperatorOverloadType::GREATER_EQUAL:   return ">=";
+        case OperatorOverloadType::COMPOUND_ADD:    return "+=";
+        case OperatorOverloadType::COMPOUND_SUB:    return "-=";
+        case OperatorOverloadType::COMPOUND_MUL:    return "*=";
+        case OperatorOverloadType::COMPOUND_DIV:    return "/=";
+        case OperatorOverloadType::INDEX:           return "[]";
         default: return "?";
     }
 }

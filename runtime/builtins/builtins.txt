@@ -1,0 +1,371 @@
+// ===== Iterable trait =====
+// Double underscore suffix = internal/compiler-known trait
+trait Iterable__<T> {
+    func next() -> Optional<T>;
+    func hasNext() -> Bool;
+}
+
+// ===== Int =====
+struct Int {
+    func Int(Int);
+
+    func toInt() -> Int;
+    func toFloat() -> Float;
+    func toComplex() -> Complex;
+    func toBool() -> Bool;
+    func toString() -> String;
+    func getHash() -> Int;
+
+    operator+(Int) -> Int;
+    operator-(Int) -> Int;
+    operator*(Int) -> Int;
+    operator/(Int) -> Int;
+    operator%(Int) -> Int;
+
+    operator+(Float) -> Float;
+    operator-(Float) -> Float;
+    operator*(Float) -> Float;
+    operator/(Float) -> Float;
+
+    operator+(Complex) -> Complex;
+    operator-(Complex) -> Complex;
+    operator*(Complex) -> Complex;
+    operator/(Complex) -> Complex;
+
+    operator+=(Int) -> Int;
+    operator-=(Int) -> Int;
+    operator*=(Int) -> Int;
+    operator/=(Int) -> Int;
+    operator%=(Int) -> Int;
+
+    operator+() -> Int;
+    operator-() -> Int;
+
+    operator==(Int) -> Bool;
+    operator!=(Int) -> Bool;
+    operator<(Int) -> Bool;
+    operator>(Int) -> Bool;
+    operator<=(Int) -> Bool;
+    operator>=(Int) -> Bool;
+
+    operator==(Float) -> Bool;
+    operator!=(Float) -> Bool;
+    operator<(Float) -> Bool;
+    operator>(Float) -> Bool;
+    operator<=(Float) -> Bool;
+    operator>=(Float) -> Bool;
+
+    operator==(Complex) -> Bool;
+    operator!=(Complex) -> Bool;
+    operator<(Complex) -> Bool;
+    operator>(Complex) -> Bool;
+    operator<=(Complex) -> Bool;
+    operator>=(Complex) -> Bool;
+}
+
+// ===== Float =====
+struct Float {
+    func Float(Float);
+
+    func toInt() -> Int;
+    func toFloat() -> Float;
+    func toComplex() -> Complex;
+    func toBool() -> Bool;
+    func toString() -> String;
+    func getHash() -> Int;
+
+    operator+(Int) -> Float;
+    operator-(Int) -> Float;
+    operator*(Int) -> Float;
+    operator/(Int) -> Float;
+
+    operator+(Float) -> Float;
+    operator-(Float) -> Float;
+    operator*(Float) -> Float;
+    operator/(Float) -> Float;
+
+    operator+(Complex) -> Complex;
+    operator-(Complex) -> Complex;
+    operator*(Complex) -> Complex;
+    operator/(Complex) -> Complex;
+
+    operator+=(Float) -> Float;
+    operator-=(Float) -> Float;
+    operator*=(Float) -> Float;
+    operator/=(Float) -> Float;
+
+    operator+() -> Float;
+    operator-() -> Float;
+
+    operator==(Int) -> Bool;
+    operator!=(Int) -> Bool;
+    operator<(Int) -> Bool;
+    operator>(Int) -> Bool;
+    operator<=(Int) -> Bool;
+    operator>=(Int) -> Bool;
+
+    operator==(Float) -> Bool;
+    operator!=(Float) -> Bool;
+    operator<(Float) -> Bool;
+    operator>(Float) -> Bool;
+    operator<=(Float) -> Bool;
+    operator>=(Float) -> Bool;
+
+    operator==(Complex) -> Bool;
+    operator!=(Complex) -> Bool;
+    operator<(Complex) -> Bool;
+    operator>(Complex) -> Bool;
+    operator<=(Complex) -> Bool;
+    operator>=(Complex) -> Bool;
+}
+
+// ===== Complex =====
+struct Complex {
+    func Complex(Float, Float);  // Complex(re, im)
+    func Complex(Complex);
+
+    #staticmember
+    func fromPolar(Float, Float) -> Complex;
+
+    func toInt() -> Int;
+    func toFloat() -> Float;
+    func toComplex() -> Complex;
+    func toBool() -> Bool;
+    func toString() -> String;
+    func getHash() -> Int;
+
+    operator+(Int) -> Complex;
+    operator-(Int) -> Complex;
+    operator*(Int) -> Complex;
+    operator/(Int) -> Complex;
+
+    operator+(Float) -> Complex;
+    operator-(Float) -> Complex;
+    operator*(Float) -> Complex;
+    operator/(Float) -> Complex;
+
+    operator+(Complex) -> Complex;
+    operator-(Complex) -> Complex;
+    operator*(Complex) -> Complex;
+    operator/(Complex) -> Complex;
+
+    operator+=(Complex) -> Complex;
+    operator-=(Complex) -> Complex;
+    operator*=(Complex) -> Complex;
+    operator/=(Complex) -> Complex;
+
+    operator+() -> Complex;
+    operator-() -> Complex;
+
+    // No < > <= >= on Complex — mathematically undefined
+    operator==(Int) -> Bool;
+    operator!=(Int) -> Bool;
+    operator==(Float) -> Bool;
+    operator!=(Float) -> Bool;
+    operator==(Complex) -> Bool;
+    operator!=(Complex) -> Bool;
+
+    func argument() -> Float;
+    func conjugate() -> Complex;
+    func magnitude() -> Float;
+}
+
+// ===== Bool =====
+struct Bool {
+    func Bool(Bool);
+
+    func toInt() -> Int;
+    func toFloat() -> Float;
+    func toComplex() -> Complex;
+    func toBool() -> Bool;
+    func toString() -> String;
+    func getHash() -> Int;
+
+    operator==(Bool) -> Bool;
+    operator!=(Bool) -> Bool;
+    operator&&(Bool) -> Bool;
+    operator||(Bool) -> Bool;
+    operator!() -> Bool;
+}
+
+// ===== String =====
+struct String impl Iterable__<String> {
+    func String(String);
+
+    func toInt() -> Int;
+    func toFloat() -> Float;
+    func toBool() -> Bool;
+    func toString() -> String;
+    func getHash() -> Int;
+
+    func length() -> Int;
+    operator[](Int) -> String;
+
+    operator+(String) -> String;
+    operator+=(String) -> String;
+    operator*(Int) -> String;
+    operator*=(Int) -> String;
+
+    operator==(String) -> Bool;
+    operator!=(String) -> Bool;
+
+    func isUpper() -> Bool;
+    func isLower() -> Bool;
+    func isAlpha() -> Bool;
+    func isDigit() -> Bool;
+    func isAlnum() -> Bool;
+    func isWhitespace() -> Bool;
+
+    func toUpper() -> String;
+    func toLower() -> String;
+
+    func contains(String) -> Bool;
+    func startsWith(String) -> Bool;
+    func endsWith(String) -> Bool;
+    func find(String) -> Int;     // returns -1 if not found
+    func rfind(String) -> Int;    // returns -1 if not found
+
+    func strip() -> String;
+    func lstrip() -> String;
+    func rstrip() -> String;
+    func replace(String, String) -> String;
+
+    func join<T:Printable>(Array<T>) -> String;
+    func substring(Int, Int) -> String;
+
+    func clear() -> Void;
+    func reserve(Int) -> Void;
+
+    // Iterable__ impl — yields single-character Strings
+    func next() -> Optional<String>;
+    func hasNext() -> Bool;
+}
+
+// ===== Array =====
+struct Array<T> impl Iterable__<T> {
+    func Array(Array<T>);
+
+    func toString<T:Printable>() -> String;
+    func getHash<T:Hashable>() -> Int;
+
+    operator[](Int) -> T;
+
+    func length() -> Int;
+    func empty() -> Bool;
+    func append(T) -> Void;
+    func prepend(T) -> Void;
+    func pop() -> T;
+    func insert(Int, T) -> Void;
+    func remove(Int) -> T;
+    func clear() -> Void;
+    func slice(Int, Int) -> Array<T>;
+    func reserve(Int) -> Void;
+
+    // Iterable__ impl
+    func next() -> Optional<T>;
+    func hasNext() -> Bool;
+}
+
+// ===== Pair =====
+struct Pair<A, B> {
+    func Pair(A, B);
+    func Pair(Pair<A, B>);
+
+    func toString<A:Printable, B:Printable>() -> String;
+    func getHash<A:Hashable, B:Hashable>() -> Int;
+
+    operator==(Pair<A, B>) -> Bool;
+    operator!=(Pair<A, B>) -> Bool;
+
+    let first: A;
+    let second: B;
+}
+
+// ===== Set =====
+struct Set<T:Hashable> impl Iterable__<T> {
+    func Set(Set<T>);
+
+    func toString<T:Printable>() -> String;
+    func getHash() -> Int;
+
+    func length() -> Int;
+    func insert(T) -> Void;
+    func remove(T) -> Bool;
+    func contains(T) -> Bool;
+    func empty() -> Bool;
+    func clear() -> Void;
+
+    // Iterable__ impl — order is undefined
+    func next() -> Optional<T>;
+    func hasNext() -> Bool;
+}
+
+// ===== Map =====
+struct Map<K:Hashable, V> impl Iterable__<Pair<K, V>> {
+    func Map(Map<K, V>);
+
+    func toString<K:Printable, V:Printable>() -> String;
+    func getHash() -> Int;
+
+    func insert(K, V) -> Void;
+    func get(K) -> Optional<V>;
+    operator[](K) -> V;
+
+    func remove(K) -> Bool;
+    func contains(K) -> Bool;
+    func length() -> Int;
+    func empty() -> Bool;
+    func clear() -> Void;
+
+    func keys() -> Array<K>;
+    func values() -> Array<V>;
+
+    // Iterable__ impl — yields Pair<K, V>, order is undefined
+    func next() -> Optional<Pair<K, V>>;
+    func hasNext() -> Bool;
+}
+
+// ===== Union =====
+struct Union<Ts...> {
+    func Union(Union<Ts...>);
+
+    func toString<Ts:Printable>() -> String;
+    func getHash<Ts:Hashable>() -> Int;
+
+    func is<T>() -> Bool;
+    func get<T>() -> T;
+}
+
+// ===== Optional =====
+struct Optional<T> {
+    func Optional(T);
+    func Optional(Optional<T>);
+
+    func toString<T:Printable>() -> String;
+    func getHash<T:Hashable>() -> Int;
+
+    func hasValue() -> Bool;
+    func value() -> T;
+    func reset() -> Void;
+}
+
+// ===== Tuple =====
+struct Tuple<Ts...> {
+    func Tuple(Ts...);
+    func Tuple(Tuple<Ts...>);
+
+    func getHash<Ts:Hashable>() -> Int;
+    func unpack() -> Ts...;
+}
+
+// ===== Built-in functions =====
+func writeln<T:Printable>(T) -> Void;
+func write<T:Printable>(T) -> Void;
+
+func input() -> String;
+func input(String) -> String;
+
+func type<T>(T) -> String;
+func isinstance<T, Obj>(Obj) -> Bool;
+
+func enumerate<T>(Array<T>) -> Array<Pair<Int, T>>;

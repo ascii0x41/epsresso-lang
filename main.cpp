@@ -19,11 +19,24 @@ using namespace espresso_compiler;
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <source.esp>\n";
+        std::cerr << "Usage:\n" ;
+        std::cerr << argv[0] << " <source.esp>\n";
+        std::cerr << argv[0] << " <source.esp> --no-astdump\n";
         return 1;
     }
 
     std::string path = argv[1];
+    bool no_astdump = false;
+    
+    // Check for optional flags
+    for (int i = 2; i < argc; ++i) {
+        if (std::string(argv[i]) == "--no-astdump") {
+            no_astdump = true;
+        }
+    }
+
+    std::cout << "Skipping astdump: " << no_astdump << std::endl;
+    
     std::ofstream out("output.txt");
 
     try {
@@ -38,15 +51,19 @@ int main(int argc, char** argv) {
         }
 
         // Dump AST for debugging
-        Parser my_parser(tokens, path);
-        auto ast = my_parser.parse();
-        out << "AST Dump:\n" << std::endl;
-        dump_ast(out, ast);
+        if (!no_astdump) { 
+            Parser my_parser(tokens, path);
+            auto ast = my_parser.parse();
+        
+            out << "AST Dump:\n" << std::endl;
+            dump_ast(out, ast);
+        }
 
 
     } catch (const CompilerException& e) {
-        std::cout << e.what() << std::endl;
-        std::cout << e.line << ":" << e.column << std::endl;
+        fatal(e.what(), e.filepath, e.line, e.column);
+        g_diagnostics.print_all();
+        g_diagnostics.print_summary();
         return 1;
     }
 
