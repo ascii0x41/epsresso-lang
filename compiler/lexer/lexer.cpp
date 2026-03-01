@@ -19,6 +19,7 @@ const std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"operator", TokenType::OPERATOR},
     {"enum", TokenType::ENUM},
     {"scope", TokenType::SCOPE},
+    // {"use", TokenType::USE},
     
     // Control flow
     {"if", TokenType::IF},

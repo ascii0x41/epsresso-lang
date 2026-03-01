@@ -291,6 +291,7 @@ GenericParams Parser::parse_generic_params() {
         std::vector<TraitConstraint> constraints;
 
         if (accept(TokenType::COLON)) {
+            // Multiple constraints separated by '+'
             while (true) {
                 auto trait_name_ptr = parse_qualified_name();
                 auto trait_name_node = std::dynamic_pointer_cast<Name>(trait_name_ptr);
@@ -317,38 +318,8 @@ GenericParams Parser::parse_generic_params() {
 
                 constraints.emplace_back(trait_name_node, std::move(args));
 
-                // Check if there's another constraint or if we've hit a new parameter
-                if (peek().type == TokenType::COMMA) {
-                    // Look ahead to see if this comma is for another trait or a new parameter
-                    if (peek_next().type == TokenType::IDENTIFIER) {
-                        // Need to check if it's followed by ':' (new parameter) or not (another trait)
-                        // For now, we'll just accept the comma and parse the next trait
-                        // The peek_next lookup requires checking the token after next
-                        // which we can't easily do. Instead, we peek and if next is IDENTIFIER,
-                        // we tentatively accept the comma and let a ':' following the identifier
-                        // break us out by trying to parse an expression
-                        
-                        // Check if this looks like a new parameter
-                        // (COMMA, IDENTIFIER, COLON pattern)
-                        // We need more lookahead... for now use a heuristic:
-                        // if next token after comma is identifier followed by colon, it's a new param
-                        // We can check this by peeking at indices
-                        size_t check_idx = idx + 1;
-                        if (check_idx < tokens.size() && tokens[check_idx].type == TokenType::IDENTIFIER) {
-                            size_t check_idx2 = check_idx + 1;
-                            if (check_idx2 < tokens.size() && tokens[check_idx2].type == TokenType::COLON) {
-                                // This is a new parameter, break out
-                                break;
-                            }
-                        }
-                        // Otherwise, assume it's another trait
-                        accept(TokenType::COMMA);
-                    } else {
-                        // No identifier after comma, so we're done with constraints
-                        break;
-                    }
-                } else {
-                    // No comma, we're done with constraints
+                // Constraints are separated by '+'; anything else ends constraint list
+                if (!accept(TokenType::PLUS)) {
                     break;
                 }
             }
@@ -374,9 +345,92 @@ GenericParams Parser::parse_generic_params() {
 }
 
 // ============================================================================
-// QUALIFIED NAME PARSING
-// Parses names with :: separators: math::real, std::vector, etc.
+// WHERE CLAUSE PARSING
+// Parses: where T: Trait1 + Trait2, U: math::Real, V: Iterator<T>
 // ============================================================================
+
+std::vector<std::pair<std::string, std::vector<TraitConstraint>>> Parser::parse_where_clause() {
+    std::vector<std::pair<std::string, std::vector<TraitConstraint>>> result;
+
+    expect(TokenType::WHERE, "Expected 'where' keyword");
+
+    do {
+        std::string param_name = expect(TokenType::IDENTIFIER,
+                                        "Expected generic parameter name in where clause").lexeme;
+
+        expect(TokenType::COLON, "Expected ':' after parameter name in where clause");
+
+        std::vector<TraitConstraint> constraints;
+
+        // Multiple constraints separated by '+'
+        while (true) {
+            auto trait_name_ptr = parse_qualified_name();
+            auto trait_name_node = std::dynamic_pointer_cast<Name>(trait_name_ptr);
+
+            std::vector<TypeExprPtr> args;
+            if (peek().type == TokenType::LT) {
+                advance();
+                do {
+                    args.push_back(parse_type_expression());
+                } while (accept(TokenType::COMMA));
+                // Handle closing '>': can be either GT or the first '>' of >>
+                if (peek().type == TokenType::GT) {
+                    advance();
+                } else if (peek().type == TokenType::GT_GT) {
+                    advance();
+                    inject_closing_angle();
+                } else {
+                    throw CompilerException(
+                        "Expected '>' after trait arguments in where clause",
+                        peek().line, peek().column, filepath
+                    );
+                }
+            }
+
+            constraints.emplace_back(trait_name_node, std::move(args));
+
+            // Constraints are separated by '+'; anything else ends this parameter's constraints
+            if (!accept(TokenType::PLUS)) {
+                break;
+            }
+        }
+
+        result.emplace_back(param_name, std::move(constraints));
+
+    } while (accept(TokenType::COMMA));
+
+    return result;
+}
+
+// ============================================================================
+// MERGE GENERIC CONSTRAINTS
+// Combines inline constraints with where clause constraints
+// where clause constraints are appended to matching parameters
+// ============================================================================
+
+GenericParams Parser::merge_generic_constraints(
+    GenericParams params,
+    const std::vector<std::pair<std::string, std::vector<TraitConstraint>>>& where_constraints
+) {
+    // Build a map for where clause constraints by parameter name
+    std::unordered_map<std::string, const std::vector<TraitConstraint>*> where_map;
+    for (const auto& [param_name, constraints] : where_constraints) {
+        where_map[param_name] = &constraints;
+    }
+
+    // Merge where clause constraints into matching parameters
+    for (auto& [param_name, param_constraints] : params) {
+        auto it = where_map.find(param_name);
+        if (it != where_map.end()) {
+            // Append where clause constraints to inline constraints
+            const auto& where_traits = *it->second;
+            param_constraints.insert(param_constraints.end(),
+                                    where_traits.begin(), where_traits.end());
+        }
+    }
+
+    return params;
+}
 
 // ============================================================================
 // TYPE EXPRESSION PARSING
@@ -1203,6 +1257,12 @@ Ptr<FunctionDeclNode> Parser::parse_function_decl() {
     TypeExprPtr return_type;
     if (accept(TokenType::ARROW)) {
         return_type = parse_type_expression();
+    }
+
+    // Parse where clause if present
+    if (peek().type == TokenType::WHERE) {
+        auto where_constraints = parse_where_clause();
+        generic_params = merge_generic_constraints(generic_params, where_constraints);
     }
 
     Ptr<BlockStatement> body;

@@ -5,10 +5,6 @@
 
 namespace espresso_compiler {
 
-TypeSymbol make_error_type() {
-    return TypeSymbol{"<error>", {}};
-}
-
 TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
     // We can do recursion here, no? All expressions from Binary to Unary to Literals are ExpressionPtr
 
@@ -19,7 +15,7 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
         case NodeKind::LITERAL_STRING: 
         case NodeKind::LITERAL_RAW_STRING:
         case NodeKind::LITERAL_INTERP_STRING:
-        return std::make_shared<TypeSymbol>(TypeSymbol{"String", {}});
+            return std::make_shared<TypeSymbol>(TypeSymbol{"String", {}});
         case NodeKind::LITERAL_BOOL: return std::make_shared<TypeSymbol>(TypeSymbol{"Bool", {}});
         case NodeKind::LITERAL_ARRAY: {
             auto array = std::static_pointer_cast<LiteralArrayNode>(expr);
@@ -33,7 +29,7 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
 
             auto first_ptr = validate_expression(elements.front());
             if (!first_ptr) { return std::make_shared<TypeSymbol>(
-                TypeSymbol{"Array", {make_error_type()}}
+                TypeSymbol{"Array", {TypeSymbol::make_error()}}
             ); }
 
             TypeSymbol first = *first_ptr;
@@ -46,7 +42,7 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
                         array->location.line,
                         array->location.column);
                     return std::make_shared<TypeSymbol>(
-                        TypeSymbol{"Array", {make_error_type()}}
+                        TypeSymbol{"Array", {TypeSymbol::make_error()}}
                     );
                 }
             }
@@ -74,8 +70,8 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
             if (!first_k_ptr || !first_v_ptr) {
                 return std::make_shared<TypeSymbol>(
                     TypeSymbol{"Map", {
-                        make_error_type(),
-                        make_error_type()
+                        TypeSymbol::make_error(),
+                        TypeSymbol::make_error()
                     }}
                 );
             }
@@ -94,8 +90,8 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
                         map->location.column);
                     return std::make_shared<TypeSymbol>(
                         TypeSymbol{"Map", {
-                            make_error_type(),
-                            make_error_type()
+                            TypeSymbol::make_error(),
+                            TypeSymbol::make_error()
                         }});
                 }
             }
@@ -108,7 +104,7 @@ TypeSymbolPtr LocalAnalyser::validate_expression(const ExpressionPtr& expr) {
             );
         }
         default:
-            return std::make_shared<TypeSymbol>(make_error_type());
+            return std::make_shared<TypeSymbol>(TypeSymbol::make_error());
     }
 }
 }

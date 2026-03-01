@@ -42,6 +42,11 @@ class Parser {
     // Parses names with :: separators (e.g., math::real)
     // Returns a Name expression tree
     Ptr<Name> parse_qualified_name();
+    std::vector<std::pair<std::string, std::vector<TraitConstraint>>> parse_where_clause();
+    GenericParams merge_generic_constraints(
+        GenericParams params,
+        const std::vector<std::pair<std::string, std::vector<TraitConstraint>>>& where_constraints
+    );
 
     // ===== Type parsing =====
     TypeExprPtr parse_type_expression();
